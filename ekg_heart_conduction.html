@@ -1,0 +1,1059 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lead II EKG and Heart Conduction System</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            color: #fff;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        h1 {
+            text-align: center;
+            margin-bottom: 10px;
+            color: #00d4ff;
+            font-size: 2em;
+        }
+        .subtitle {
+            text-align: center;
+            color: #888;
+            margin-bottom: 20px;
+        }
+        .main-content {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        .panel {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 15px;
+            padding: 20px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .heart-panel {
+            flex: 1;
+            min-width: 500px;
+            max-width: 600px;
+        }
+        .ekg-panel {
+            flex: 2;
+            min-width: 600px;
+        }
+        .panel-title {
+            color: #00d4ff;
+            margin-bottom: 15px;
+            font-size: 1.2em;
+            border-bottom: 1px solid rgba(0, 212, 255, 0.3);
+            padding-bottom: 10px;
+        }
+        canvas {
+            display: block;
+            margin: 0 auto;
+            border-radius: 10px;
+        }
+        #heartCanvas {
+            background: linear-gradient(180deg, #0d1b2a 0%, #1b263b 100%);
+        }
+        #ekgCanvas {
+            background: #0a0a0a;
+        }
+        .controls {
+            margin-top: 20px;
+            padding: 15px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 10px;
+        }
+        .slider-container {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+        .slider-container label {
+            min-width: 120px;
+            color: #ccc;
+        }
+        input[type="range"] {
+            flex: 1;
+            height: 8px;
+            -webkit-appearance: none;
+            background: linear-gradient(90deg, #00d4ff, #ff6b6b);
+            border-radius: 4px;
+            outline: none;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 20px;
+            height: 20px;
+            background: #fff;
+            border-radius: 50%;
+            cursor: pointer;
+            box-shadow: 0 0 10px rgba(0, 212, 255, 0.5);
+        }
+        .value-display {
+            min-width: 80px;
+            text-align: right;
+            color: #00d4ff;
+            font-family: monospace;
+        }
+        .button-group {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin-top: 15px;
+        }
+        button {
+            padding: 10px 25px;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 1em;
+            transition: all 0.3s ease;
+        }
+        .btn-play {
+            background: linear-gradient(90deg, #00d4ff, #0099cc);
+            color: #fff;
+        }
+        .btn-play:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 20px rgba(0, 212, 255, 0.5);
+        }
+        .btn-reset {
+            background: linear-gradient(90deg, #ff6b6b, #cc5555);
+            color: #fff;
+        }
+        .btn-reset:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 20px rgba(255, 107, 107, 0.5);
+        }
+        .phase-info {
+            margin-top: 20px;
+            padding: 15px;
+            background: rgba(0, 212, 255, 0.1);
+            border-radius: 10px;
+            border-left: 4px solid #00d4ff;
+        }
+        .phase-name {
+            font-size: 1.3em;
+            color: #00d4ff;
+            margin-bottom: 5px;
+        }
+        .phase-description {
+            color: #ccc;
+            line-height: 1.5;
+        }
+        .legend {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin-top: 15px;
+            padding: 10px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 8px;
+        }
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.9em;
+        }
+        .legend-color {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+        }
+        .wave-labels {
+            display: flex;
+            justify-content: space-around;
+            margin-top: 10px;
+            font-size: 0.9em;
+        }
+        .wave-label {
+            padding: 5px 15px;
+            border-radius: 15px;
+            transition: all 0.3s ease;
+        }
+        .wave-label.active {
+            transform: scale(1.1);
+        }
+        .p-wave { background: rgba(255, 200, 0, 0.3); color: #ffc800; }
+        .pr-segment { background: rgba(128, 128, 128, 0.3); color: #888; }
+        .qrs-complex { background: rgba(255, 50, 50, 0.3); color: #ff3232; }
+        .st-segment { background: rgba(100, 200, 100, 0.3); color: #64c864; }
+        .t-wave { background: rgba(100, 150, 255, 0.3); color: #6496ff; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Lead II EKG & Cardiac Conduction System</h1>
+        <p class="subtitle">Interactive visualization of electrical activity propagation through the heart</p>
+        
+        <div class="main-content">
+            <div class="panel heart-panel">
+                <h2 class="panel-title">Heart Conduction System</h2>
+                <canvas id="heartCanvas" width="500" height="450"></canvas>
+                <div class="legend">
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #ffc800;"></div>
+                        <span>SA Node</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #ff9900;"></div>
+                        <span>Atria</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #00ff88;"></div>
+                        <span>AV Node</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #ff3232;"></div>
+                        <span>Bundle/Purkinje</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #ff6666;"></div>
+                        <span>Ventricles</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="panel ekg-panel">
+                <h2 class="panel-title">Lead II EKG Trace</h2>
+                <canvas id="ekgCanvas" width="700" height="300"></canvas>
+                <div class="wave-labels">
+                    <span class="wave-label p-wave" id="pWaveLabel">P Wave</span>
+                    <span class="wave-label pr-segment" id="prLabel">PR Segment</span>
+                    <span class="wave-label qrs-complex" id="qrsLabel">QRS Complex</span>
+                    <span class="wave-label st-segment" id="stLabel">ST Segment</span>
+                    <span class="wave-label t-wave" id="tWaveLabel">T Wave</span>
+                </div>
+                
+                <div class="phase-info">
+                    <div class="phase-name" id="phaseName">SA Node Depolarization</div>
+                    <div class="phase-description" id="phaseDescription">
+                        The sinoatrial (SA) node, the heart's natural pacemaker, initiates the electrical impulse.
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="panel controls" style="margin-top: 20px;">
+            <div class="slider-container">
+                <label>Cardiac Cycle Position:</label>
+                <input type="range" id="timeSlider" min="0" max="100" value="0">
+                <span class="value-display" id="timeValue">0%</span>
+            </div>
+            <div class="slider-container">
+                <label>Animation Speed:</label>
+                <input type="range" id="speedSlider" min="1" max="10" value="3">
+                <span class="value-display" id="speedValue">3x</span>
+            </div>
+            <div class="button-group">
+                <button class="btn-play" id="playBtn">Play Animation</button>
+                <button class="btn-reset" id="resetBtn">Reset</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Canvas setup
+        const heartCanvas = document.getElementById('heartCanvas');
+        const heartCtx = heartCanvas.getContext('2d');
+        const ekgCanvas = document.getElementById('ekgCanvas');
+        const ekgCtx = ekgCanvas.getContext('2d');
+        
+        // Controls
+        const timeSlider = document.getElementById('timeSlider');
+        const speedSlider = document.getElementById('speedSlider');
+        const playBtn = document.getElementById('playBtn');
+        const resetBtn = document.getElementById('resetBtn');
+        const timeValue = document.getElementById('timeValue');
+        const speedValue = document.getElementById('speedValue');
+        const phaseName = document.getElementById('phaseName');
+        const phaseDescription = document.getElementById('phaseDescription');
+        
+        // Wave labels
+        const waveLabels = {
+            p: document.getElementById('pWaveLabel'),
+            pr: document.getElementById('prLabel'),
+            qrs: document.getElementById('qrsLabel'),
+            st: document.getElementById('stLabel'),
+            t: document.getElementById('tWaveLabel')
+        };
+        
+        // Animation state
+        let isPlaying = false;
+        let animationId = null;
+        let currentTime = 0;
+        
+        // Cardiac cycle phases (as percentage of total cycle)
+        const phases = {
+            saNode: { start: 0, end: 5 },
+            atrialDepol: { start: 5, end: 20 },
+            avDelay: { start: 20, end: 30 },
+            bundleHis: { start: 30, end: 35 },
+            bundleBranches: { start: 35, end: 45 },
+            ventricularDepol: { start: 45, end: 55 },
+            stSegment: { start: 55, end: 65 },
+            ventricularRepol: { start: 65, end: 85 },
+            rest: { start: 85, end: 100 }
+        };
+        
+        // Phase information
+        const phaseInfo = {
+            saNode: {
+                name: "SA Node Depolarization",
+                description: "The sinoatrial (SA) node in the right atrium initiates the electrical impulse. This is the heart's natural pacemaker, firing at 60-100 times per minute.",
+                wave: 'p'
+            },
+            atrialDepol: {
+                name: "Atrial Depolarization (P Wave)",
+                description: "The electrical signal spreads across both atria, causing them to contract and push blood into the ventricles. This produces the P wave on the EKG.",
+                wave: 'p'
+            },
+            avDelay: {
+                name: "AV Node Delay (PR Segment)",
+                description: "The signal pauses briefly at the AV node, allowing the ventricles to fill completely with blood. This delay creates the PR segment on the EKG.",
+                wave: 'pr'
+            },
+            bundleHis: {
+                name: "Bundle of His Conduction",
+                description: "The signal travels rapidly through the Bundle of His, the only electrical connection between atria and ventricles.",
+                wave: 'qrs'
+            },
+            bundleBranches: {
+                name: "Bundle Branches & Purkinje Fibers",
+                description: "The signal splits into left and right bundle branches, then spreads through the Purkinje fiber network to the ventricular muscle.",
+                wave: 'qrs'
+            },
+            ventricularDepol: {
+                name: "Ventricular Depolarization (QRS Complex)",
+                description: "The ventricles depolarize and contract powerfully, ejecting blood to the lungs and body. This creates the QRS complex - the largest deflection on the EKG.",
+                wave: 'qrs'
+            },
+            stSegment: {
+                name: "ST Segment",
+                description: "The ventricles are fully depolarized and beginning to repolarize. The ST segment should be flat at baseline - elevation or depression indicates cardiac ischemia.",
+                wave: 'st'
+            },
+            ventricularRepol: {
+                name: "Ventricular Repolarization (T Wave)",
+                description: "The ventricles recover and reset their electrical charge, preparing for the next beat. This creates the T wave on the EKG.",
+                wave: 't'
+            },
+            rest: {
+                name: "Electrical Rest (Diastole)",
+                description: "The heart is electrically at rest, and the chambers are filling with blood in preparation for the next cardiac cycle.",
+                wave: null
+            }
+        };
+        
+        // Heart anatomy coordinates (scaled for canvas)
+        const heart = {
+            // Heart outline
+            centerX: 250,
+            centerY: 200,
+            
+            // SA Node
+            saNode: { x: 320, y: 100 },
+            
+            // Atria centers
+            rightAtrium: { x: 320, y: 130 },
+            leftAtrium: { x: 180, y: 130 },
+            
+            // AV Node
+            avNode: { x: 250, y: 180 },
+            
+            // Bundle of His
+            bundleHis: { x: 250, y: 210 },
+            
+            // Bundle branches
+            rightBundle: { x: 300, y: 280 },
+            leftBundle: { x: 200, y: 280 },
+            
+            // Purkinje fibers endpoints
+            purkinje: [
+                { x: 340, y: 340 },
+                { x: 320, y: 360 },
+                { x: 280, y: 370 },
+                { x: 250, y: 375 },
+                { x: 220, y: 370 },
+                { x: 180, y: 360 },
+                { x: 160, y: 340 }
+            ],
+            
+            // Ventricle centers
+            rightVentricle: { x: 300, y: 300 },
+            leftVentricle: { x: 200, y: 300 }
+        };
+        
+        // Generate EKG waveform data
+        function generateEKGData() {
+            const data = [];
+            const points = 700;
+            
+            for (let i = 0; i < points; i++) {
+                const t = i / points * 100; // Percentage through cycle
+                let voltage = 0;
+                
+                // P wave (5-20%)
+                if (t >= 5 && t < 20) {
+                    const pt = (t - 5) / 15;
+                    voltage = 0.25 * Math.sin(pt * Math.PI);
+                }
+                // PR segment (20-30%) - baseline
+                else if (t >= 20 && t < 30) {
+                    voltage = 0;
+                }
+                // QRS complex (30-55%)
+                else if (t >= 30 && t < 55) {
+                    const qt = (t - 30) / 25;
+                    if (qt < 0.15) {
+                        // Q wave - small negative
+                        voltage = -0.15 * Math.sin(qt / 0.15 * Math.PI);
+                    } else if (qt < 0.5) {
+                        // R wave - large positive
+                        const rt = (qt - 0.15) / 0.35;
+                        voltage = 1.0 * Math.sin(rt * Math.PI);
+                    } else if (qt < 0.7) {
+                        // S wave - negative
+                        const st = (qt - 0.5) / 0.2;
+                        voltage = -0.3 * Math.sin(st * Math.PI);
+                    } else {
+                        // Return to baseline
+                        const bt = (qt - 0.7) / 0.3;
+                        voltage = -0.3 * (1 - bt) * Math.sin(Math.PI * 0.5);
+                    }
+                }
+                // ST segment (55-65%) - baseline
+                else if (t >= 55 && t < 65) {
+                    voltage = 0;
+                }
+                // T wave (65-85%)
+                else if (t >= 65 && t < 85) {
+                    const tt = (t - 65) / 20;
+                    voltage = 0.35 * Math.sin(tt * Math.PI);
+                }
+                // Rest (baseline)
+                else {
+                    voltage = 0;
+                }
+                
+                data.push(voltage);
+            }
+            
+            return data;
+        }
+        
+        const ekgData = generateEKGData();
+        
+        // Get current phase based on time
+        function getCurrentPhase(time) {
+            for (const [name, range] of Object.entries(phases)) {
+                if (time >= range.start && time < range.end) {
+                    return name;
+                }
+            }
+            return 'rest';
+        }
+        
+        // Draw heart anatomy
+        function drawHeartAnatomy() {
+            const ctx = heartCtx;
+            ctx.clearRect(0, 0, heartCanvas.width, heartCanvas.height);
+            
+            // Draw heart outline
+            ctx.save();
+            ctx.beginPath();
+            
+            // Simplified heart shape
+            ctx.moveTo(250, 380);
+            // Right side
+            ctx.bezierCurveTo(350, 320, 380, 220, 350, 140);
+            ctx.bezierCurveTo(330, 80, 280, 70, 250, 100);
+            // Left side
+            ctx.bezierCurveTo(220, 70, 170, 80, 150, 140);
+            ctx.bezierCurveTo(120, 220, 150, 320, 250, 380);
+            
+            ctx.fillStyle = 'rgba(180, 50, 50, 0.3)';
+            ctx.fill();
+            ctx.strokeStyle = 'rgba(255, 100, 100, 0.5)';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            ctx.restore();
+            
+            // Draw septum
+            ctx.beginPath();
+            ctx.moveTo(250, 120);
+            ctx.lineTo(250, 370);
+            ctx.strokeStyle = 'rgba(255, 150, 150, 0.4)';
+            ctx.lineWidth = 3;
+            ctx.stroke();
+            
+            // Draw atrial-ventricular boundary
+            ctx.beginPath();
+            ctx.moveTo(150, 180);
+            ctx.quadraticCurveTo(250, 200, 350, 180);
+            ctx.strokeStyle = 'rgba(255, 150, 150, 0.4)';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            
+            // Labels
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+            ctx.font = '12px Arial';
+            ctx.fillText('Right Atrium', 290, 150);
+            ctx.fillText('Left Atrium', 155, 150);
+            ctx.fillText('Right Ventricle', 280, 320);
+            ctx.fillText('Left Ventricle', 155, 320);
+        }
+        
+        // Draw conduction system
+        function drawConductionSystem(time) {
+            const ctx = heartCtx;
+            const phase = getCurrentPhase(time);
+            
+            // Calculate activation intensity for each component
+            const getIntensity = (phaseStart, phaseEnd) => {
+                if (time < phaseStart) return 0;
+                if (time > phaseEnd) return 0.2; // Dim after activation
+                return (time - phaseStart) / (phaseEnd - phaseStart);
+            };
+            
+            // SA Node
+            const saIntensity = time < phases.saNode.end ? 
+                (time < phases.saNode.start ? 0 : 1) : 0.2;
+            drawNode(heart.saNode.x, heart.saNode.y, 15, '#ffc800', saIntensity, 'SA Node');
+            
+            // Atrial depolarization wave
+            if (time >= phases.atrialDepol.start && time < phases.atrialDepol.end) {
+                const progress = (time - phases.atrialDepol.start) / 
+                    (phases.atrialDepol.end - phases.atrialDepol.start);
+                drawAtrialWave(progress);
+            } else if (time >= phases.atrialDepol.end) {
+                // Show completed atrial activation briefly
+                const fadeOut = Math.max(0, 1 - (time - phases.atrialDepol.end) / 10);
+                if (fadeOut > 0) {
+                    drawAtrialWave(1, fadeOut);
+                }
+            }
+            
+            // AV Node
+            const avIntensity = getIntensity(phases.avDelay.start, phases.avDelay.end);
+            drawNode(heart.avNode.x, heart.avNode.y, 12, '#00ff88', 
+                time >= phases.avDelay.start && time < phases.bundleHis.end ? 1 : 0.2, 'AV Node');
+            
+            // Draw conduction pathway
+            drawConductionPath(time);
+            
+            // Bundle of His
+            if (time >= phases.bundleHis.start) {
+                const hisIntensity = time < phases.bundleHis.end ? 1 : 0.3;
+                drawNode(heart.bundleHis.x, heart.bundleHis.y, 8, '#ff3232', hisIntensity);
+            }
+            
+            // Bundle branches and Purkinje fibers
+            if (time >= phases.bundleBranches.start) {
+                drawBundleBranches(time);
+            }
+            
+            // Ventricular depolarization
+            if (time >= phases.ventricularDepol.start && time < phases.stSegment.end) {
+                const progress = (time - phases.ventricularDepol.start) / 
+                    (phases.stSegment.end - phases.ventricularDepol.start);
+                drawVentricularWave(Math.min(1, progress * 1.5));
+            }
+            
+            // Ventricular repolarization (T wave)
+            if (time >= phases.ventricularRepol.start && time < phases.ventricularRepol.end) {
+                const progress = (time - phases.ventricularRepol.start) / 
+                    (phases.ventricularRepol.end - phases.ventricularRepol.start);
+                drawRepolarizationWave(progress);
+            }
+            
+            // Draw current flow arrow
+            drawCurrentArrow(time);
+        }
+        
+        // Draw a node (SA, AV, etc.)
+        function drawNode(x, y, radius, color, intensity, label) {
+            const ctx = heartCtx;
+            
+            // Glow effect
+            if (intensity > 0.3) {
+                const gradient = ctx.createRadialGradient(x, y, 0, x, y, radius * 3);
+                gradient.addColorStop(0, color);
+                gradient.addColorStop(0.5, `${color}66`);
+                gradient.addColorStop(1, 'transparent');
+                ctx.fillStyle = gradient;
+                ctx.beginPath();
+                ctx.arc(x, y, radius * 3, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            
+            // Node
+            ctx.beginPath();
+            ctx.arc(x, y, radius, 0, Math.PI * 2);
+            ctx.fillStyle = intensity > 0.3 ? color : `${color}44`;
+            ctx.fill();
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            
+            // Label
+            if (label) {
+                ctx.fillStyle = '#fff';
+                ctx.font = 'bold 11px Arial';
+                ctx.fillText(label, x - 20, y - radius - 5);
+            }
+        }
+        
+        // Draw atrial depolarization wave
+        function drawAtrialWave(progress, opacity = 1) {
+            const ctx = heartCtx;
+            
+            // Wave spreading from SA node across atria
+            ctx.save();
+            ctx.globalAlpha = opacity * 0.6;
+            
+            const waveRadius = progress * 150;
+            const gradient = ctx.createRadialGradient(
+                heart.saNode.x, heart.saNode.y, 0,
+                heart.saNode.x, heart.saNode.y, waveRadius
+            );
+            gradient.addColorStop(0, 'transparent');
+            gradient.addColorStop(0.7, 'transparent');
+            gradient.addColorStop(0.85, '#ff990088');
+            gradient.addColorStop(1, '#ff9900');
+            
+            ctx.beginPath();
+            ctx.arc(heart.saNode.x, heart.saNode.y, waveRadius, 0, Math.PI * 2);
+            ctx.fillStyle = gradient;
+            ctx.fill();
+            
+            ctx.restore();
+        }
+        
+        // Draw conduction pathway
+        function drawConductionPath(time) {
+            const ctx = heartCtx;
+            
+            // SA to AV connection through atria
+            if (time >= phases.atrialDepol.start) {
+                ctx.beginPath();
+                ctx.moveTo(heart.saNode.x, heart.saNode.y);
+                ctx.lineTo(heart.avNode.x, heart.avNode.y);
+                ctx.strokeStyle = time < phases.avDelay.end ? '#ffc80088' : '#ffc80033';
+                ctx.lineWidth = 2;
+                ctx.setLineDash([5, 5]);
+                ctx.stroke();
+                ctx.setLineDash([]);
+            }
+        }
+        
+        // Draw bundle branches
+        function drawBundleBranches(time) {
+            const ctx = heartCtx;
+            const progress = Math.min(1, (time - phases.bundleBranches.start) / 
+                (phases.ventricularDepol.start - phases.bundleBranches.start));
+            
+            const intensity = time < phases.ventricularDepol.end ? 1 : 0.3;
+            
+            ctx.strokeStyle = `rgba(255, 50, 50, ${intensity})`;
+            ctx.lineWidth = 3;
+            
+            // Right bundle branch
+            ctx.beginPath();
+            ctx.moveTo(heart.bundleHis.x, heart.bundleHis.y);
+            const rbEnd = {
+                x: heart.bundleHis.x + (heart.rightBundle.x - heart.bundleHis.x) * progress,
+                y: heart.bundleHis.y + (heart.rightBundle.y - heart.bundleHis.y) * progress
+            };
+            ctx.lineTo(rbEnd.x, rbEnd.y);
+            ctx.stroke();
+            
+            // Left bundle branch
+            ctx.beginPath();
+            ctx.moveTo(heart.bundleHis.x, heart.bundleHis.y);
+            const lbEnd = {
+                x: heart.bundleHis.x + (heart.leftBundle.x - heart.bundleHis.x) * progress,
+                y: heart.bundleHis.y + (heart.leftBundle.y - heart.bundleHis.y) * progress
+            };
+            ctx.lineTo(lbEnd.x, lbEnd.y);
+            ctx.stroke();
+            
+            // Purkinje fibers
+            if (progress > 0.5) {
+                const pkProgress = (progress - 0.5) * 2;
+                ctx.lineWidth = 2;
+                
+                heart.purkinje.forEach((p, i) => {
+                    const startX = i < 3 ? heart.rightBundle.x : 
+                        (i === 3 ? heart.bundleHis.x : heart.leftBundle.x);
+                    const startY = i < 3 ? heart.rightBundle.y : 
+                        (i === 3 ? heart.bundleHis.y + 70 : heart.leftBundle.y);
+                    
+                    ctx.beginPath();
+                    ctx.moveTo(startX, startY);
+                    ctx.lineTo(
+                        startX + (p.x - startX) * pkProgress,
+                        startY + (p.y - startY) * pkProgress
+                    );
+                    ctx.stroke();
+                });
+            }
+        }
+        
+        // Draw ventricular depolarization wave
+        function drawVentricularWave(progress) {
+            const ctx = heartCtx;
+            
+            ctx.save();
+            ctx.globalAlpha = 0.5;
+            
+            // Wave from apex spreading up
+            const waveY = 380 - progress * 200;
+            const gradient = ctx.createLinearGradient(0, 380, 0, waveY);
+            gradient.addColorStop(0, '#ff666688');
+            gradient.addColorStop(1, 'transparent');
+            
+            ctx.fillStyle = gradient;
+            ctx.beginPath();
+            ctx.moveTo(150, 380);
+            ctx.lineTo(350, 380);
+            ctx.lineTo(350, waveY);
+            ctx.lineTo(150, waveY);
+            ctx.closePath();
+            ctx.fill();
+            
+            ctx.restore();
+        }
+        
+        // Draw repolarization wave
+        function drawRepolarizationWave(progress) {
+            const ctx = heartCtx;
+            
+            ctx.save();
+            ctx.globalAlpha = 0.4 * (1 - progress);
+            
+            // Repolarization wave (opposite direction - epicardium to endocardium)
+            const waveY = 180 + progress * 200;
+            const gradient = ctx.createLinearGradient(0, 180, 0, waveY);
+            gradient.addColorStop(0, '#6496ff88');
+            gradient.addColorStop(1, 'transparent');
+            
+            ctx.fillStyle = gradient;
+            ctx.beginPath();
+            ctx.moveTo(150, 180);
+            ctx.lineTo(350, 180);
+            ctx.lineTo(350, waveY);
+            ctx.lineTo(150, waveY);
+            ctx.closePath();
+            ctx.fill();
+            
+            ctx.restore();
+        }
+        
+        // Draw current flow arrow indicating Lead II direction
+        function drawCurrentArrow(time) {
+            const ctx = heartCtx;
+            const phase = getCurrentPhase(time);
+            
+            // Lead II axis: from right shoulder to left leg (roughly top-right to bottom-left)
+            // Positive deflection when current flows toward left leg
+            
+            let arrowStart, arrowEnd, color, label;
+            
+            if (phase === 'atrialDepol' || phase === 'saNode') {
+                // Atrial depol - current flows toward AV node (positive in Lead II)
+                arrowStart = { x: heart.saNode.x, y: heart.saNode.y };
+                arrowEnd = { x: heart.avNode.x - 30, y: heart.avNode.y + 30 };
+                color = '#ffc800';
+                label = 'P wave (+)';
+            } else if (phase === 'bundleHis' || phase === 'bundleBranches' || phase === 'ventricularDepol') {
+                // Ventricular depol - major vector toward apex (positive in Lead II)
+                arrowStart = { x: heart.avNode.x, y: heart.avNode.y };
+                arrowEnd = { x: 250, y: 360 };
+                color = '#ff3232';
+                label = 'QRS (+)';
+            } else if (phase === 'ventricularRepol') {
+                // Repolarization - vector same direction as depol (T wave usually positive)
+                arrowStart = { x: 250, y: 200 };
+                arrowEnd = { x: 250, y: 350 };
+                color = '#6496ff';
+                label = 'T wave (+)';
+            } else {
+                return; // No arrow during rest/delays
+            }
+            
+            // Draw arrow
+            ctx.save();
+            ctx.strokeStyle = color;
+            ctx.fillStyle = color;
+            ctx.lineWidth = 4;
+            ctx.lineCap = 'round';
+            
+            // Pulsing effect
+            const pulse = 0.7 + 0.3 * Math.sin(Date.now() / 150);
+            ctx.globalAlpha = pulse;
+            
+            // Arrow body
+            ctx.beginPath();
+            ctx.moveTo(arrowStart.x, arrowStart.y);
+            ctx.lineTo(arrowEnd.x, arrowEnd.y);
+            ctx.stroke();
+            
+            // Arrow head
+            const angle = Math.atan2(arrowEnd.y - arrowStart.y, arrowEnd.x - arrowStart.x);
+            const headLength = 20;
+            ctx.beginPath();
+            ctx.moveTo(arrowEnd.x, arrowEnd.y);
+            ctx.lineTo(
+                arrowEnd.x - headLength * Math.cos(angle - Math.PI / 6),
+                arrowEnd.y - headLength * Math.sin(angle - Math.PI / 6)
+            );
+            ctx.lineTo(
+                arrowEnd.x - headLength * Math.cos(angle + Math.PI / 6),
+                arrowEnd.y - headLength * Math.sin(angle + Math.PI / 6)
+            );
+            ctx.closePath();
+            ctx.fill();
+            
+            // Label
+            ctx.globalAlpha = 1;
+            ctx.font = 'bold 14px Arial';
+            ctx.fillText(label, arrowEnd.x + 10, arrowEnd.y);
+            
+            ctx.restore();
+        }
+        
+        // Draw EKG trace
+        function drawEKG(currentPosition) {
+            const ctx = ekgCtx;
+            const width = ekgCanvas.width;
+            const height = ekgCanvas.height;
+            
+            ctx.clearRect(0, 0, width, height);
+            
+            // Draw grid
+            ctx.strokeStyle = '#1a3d1a';
+            ctx.lineWidth = 0.5;
+            
+            // Minor grid (1mm equivalent)
+            for (let x = 0; x < width; x += 10) {
+                ctx.beginPath();
+                ctx.moveTo(x, 0);
+                ctx.lineTo(x, height);
+                ctx.stroke();
+            }
+            for (let y = 0; y < height; y += 10) {
+                ctx.beginPath();
+                ctx.moveTo(0, y);
+                ctx.lineTo(width, y);
+                ctx.stroke();
+            }
+            
+            // Major grid (5mm equivalent)
+            ctx.strokeStyle = '#2d5a2d';
+            ctx.lineWidth = 1;
+            for (let x = 0; x < width; x += 50) {
+                ctx.beginPath();
+                ctx.moveTo(x, 0);
+                ctx.lineTo(x, height);
+                ctx.stroke();
+            }
+            for (let y = 0; y < height; y += 50) {
+                ctx.beginPath();
+                ctx.moveTo(0, y);
+                ctx.lineTo(width, y);
+                ctx.stroke();
+            }
+            
+            // Baseline
+            const baseline = height / 2;
+            ctx.strokeStyle = '#444';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(0, baseline);
+            ctx.lineTo(width, baseline);
+            ctx.stroke();
+            
+            // Draw EKG waveform
+            ctx.beginPath();
+            ctx.strokeStyle = '#00ff00';
+            ctx.lineWidth = 2;
+            
+            const scale = height * 0.35;
+            
+            for (let i = 0; i < ekgData.length; i++) {
+                const x = (i / ekgData.length) * width;
+                const y = baseline - ekgData[i] * scale;
+                
+                if (i === 0) {
+                    ctx.moveTo(x, y);
+                } else {
+                    ctx.lineTo(x, y);
+                }
+            }
+            ctx.stroke();
+            
+            // Draw current position marker
+            const markerX = (currentPosition / 100) * width;
+            
+            // Vertical line
+            ctx.strokeStyle = '#ff0000';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(markerX, 0);
+            ctx.lineTo(markerX, height);
+            ctx.stroke();
+            
+            // Position indicator (filled circle on waveform)
+            const dataIndex = Math.floor((currentPosition / 100) * (ekgData.length - 1));
+            const markerY = baseline - ekgData[dataIndex] * scale;
+            
+            ctx.beginPath();
+            ctx.arc(markerX, markerY, 8, 0, Math.PI * 2);
+            ctx.fillStyle = '#ff0000';
+            ctx.fill();
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            
+            // Wave region highlighting
+            drawWaveRegions(currentPosition);
+            
+            // Labels
+            ctx.fillStyle = '#888';
+            ctx.font = '12px Arial';
+            ctx.fillText('Lead II', 10, 20);
+            ctx.fillText(`${currentPosition.toFixed(0)}%`, width - 40, 20);
+        }
+        
+        // Highlight current wave region
+        function drawWaveRegions(time) {
+            const ctx = ekgCtx;
+            const width = ekgCanvas.width;
+            const height = ekgCanvas.height;
+            
+            const regions = [
+                { start: 5, end: 20, color: 'rgba(255, 200, 0, 0.15)', label: 'P' },
+                { start: 20, end: 30, color: 'rgba(128, 128, 128, 0.1)', label: 'PR' },
+                { start: 30, end: 55, color: 'rgba(255, 50, 50, 0.15)', label: 'QRS' },
+                { start: 55, end: 65, color: 'rgba(100, 200, 100, 0.1)', label: 'ST' },
+                { start: 65, end: 85, color: 'rgba(100, 150, 255, 0.15)', label: 'T' }
+            ];
+            
+            regions.forEach(region => {
+                const startX = (region.start / 100) * width;
+                const endX = (region.end / 100) * width;
+                
+                // Highlight current region more strongly
+                const isActive = time >= region.start && time < region.end;
+                
+                ctx.fillStyle = isActive ? 
+                    region.color.replace('0.15', '0.3').replace('0.1', '0.2') : 
+                    region.color;
+                ctx.fillRect(startX, 0, endX - startX, height);
+                
+                // Label at bottom
+                ctx.fillStyle = isActive ? '#fff' : '#666';
+                ctx.font = isActive ? 'bold 14px Arial' : '12px Arial';
+                ctx.fillText(region.label, (startX + endX) / 2 - 10, height - 10);
+            });
+        }
+        
+        // Update phase information
+        function updatePhaseInfo(time) {
+            const phase = getCurrentPhase(time);
+            const info = phaseInfo[phase];
+            
+            phaseName.textContent = info.name;
+            phaseDescription.textContent = info.description;
+            
+            // Update wave label highlighting
+            Object.keys(waveLabels).forEach(key => {
+                waveLabels[key].classList.remove('active');
+            });
+            
+            if (info.wave && waveLabels[info.wave]) {
+                waveLabels[info.wave].classList.add('active');
+            }
+        }
+        
+        // Main render function
+        function render() {
+            drawHeartAnatomy();
+            drawConductionSystem(currentTime);
+            drawEKG(currentTime);
+            updatePhaseInfo(currentTime);
+        }
+        
+        // Animation loop
+        function animate() {
+            if (!isPlaying) return;
+            
+            const speed = parseFloat(speedSlider.value);
+            currentTime += 0.15 * speed;
+            
+            if (currentTime >= 100) {
+                currentTime = 0;
+            }
+            
+            timeSlider.value = currentTime;
+            timeValue.textContent = `${currentTime.toFixed(0)}%`;
+            
+            render();
+            animationId = requestAnimationFrame(animate);
+        }
+        
+        // Event listeners
+        timeSlider.addEventListener('input', (e) => {
+            currentTime = parseFloat(e.target.value);
+            timeValue.textContent = `${currentTime.toFixed(0)}%`;
+            render();
+        });
+        
+        speedSlider.addEventListener('input', (e) => {
+            speedValue.textContent = `${e.target.value}x`;
+        });
+        
+        playBtn.addEventListener('click', () => {
+            isPlaying = !isPlaying;
+            playBtn.textContent = isPlaying ? 'Pause' : 'Play Animation';
+            
+            if (isPlaying) {
+                animate();
+            } else {
+                cancelAnimationFrame(animationId);
+            }
+        });
+        
+        resetBtn.addEventListener('click', () => {
+            currentTime = 0;
+            timeSlider.value = 0;
+            timeValue.textContent = '0%';
+            isPlaying = false;
+            playBtn.textContent = 'Play Animation';
+            cancelAnimationFrame(animationId);
+            render();
+        });
+        
+        // Initial render
+        render();
+    </script>
+</body>
+</html>
