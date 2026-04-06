@@ -33,7 +33,7 @@ from inference_sam2 import (
     load_sam2_image,
     load_sam2_video,
     segment_image as sam2_segment_image,
-    track_video_with_points,
+    track_video_with_point,
 )
 from inference_sam3 import (
     load_sam3_image,
