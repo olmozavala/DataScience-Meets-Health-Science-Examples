@@ -1,0 +1,32 @@
+/* Segment Anything Lab — light polish on top of Bootstrap */
+
+.app-hero {
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+  padding-bottom: 1rem;
+  margin-bottom: 1rem;
+}
+
+.upload-zone {
+  border: 2px dashed var(--bs-border-color);
+  border-radius: 0.5rem;
+  padding: 1rem 1.25rem;
+  background: var(--bs-light);
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.upload-zone:hover {
+  border-color: var(--bs-primary);
+  background: rgba(13, 110, 253, 0.06);
+}
+
+.graph-panel {
+  border-radius: 0.5rem;
+  overflow: hidden;
+  box-shadow: 0 0.125rem 0.5rem rgba(0, 0, 0, 0.08);
+  background: #0d1117;
+}
+
+.sidebar-panel {
+  position: sticky;
+  top: 1rem;
+}

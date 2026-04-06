@@ -1,0 +1,24 @@
+[project]
+name = "segment-anything-lab"
+version = "0.1.0"
+description = "Interactive Segment Anything (SAM 1 / SAM 2 / SAM 3) lab with Dash"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "dash>=2.14.0",
+    "dash-bootstrap-components>=1.5.0",
+    "plotly>=5.18.0",
+    "Pillow>=10.0.0",
+    "numpy>=1.24.0",
+]
+
+[project.optional-dependencies]
+inference = [
+    "torch",
+    "transformers",
+    "accelerate",
+    "safetensors",
+]
+
+[tool.uv]
+dev-dependencies = []
