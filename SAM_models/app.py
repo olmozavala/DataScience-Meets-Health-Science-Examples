@@ -609,6 +609,8 @@ def _layout_sam2() -> html.Div:
                     dcc.Slider(id="sam2-maxf", min=8, max=300, step=1, value=80),
                     html.Label("Frame stride"),
                     dcc.Slider(id="sam2-stride", min=1, max=5, step=1, value=1),
+                    html.Label("Starting frame index"),
+                    html.Div(dcc.Slider(id="sam2-start-frame", min=0, max=0, step=1, value=0)),
                     html.Div(id="sam2-vid-content"),
                     dcc.Loading(
                         html.Div(id="sam2-vid-track-out", className="mt-3"),
@@ -1268,17 +1270,19 @@ def _register_callbacks(app: dash.Dash) -> None:
     @app.callback(
         Output("sam2-vid-content", "children"),
         Output("sam2-vid-points-store", "data"),
+        Output("sam2-start-frame", "max"),
+        Output("sam2-start-frame", "value"),
         Input("sam2-vid-meta", "data"),
         Input("sam2-maxf", "value"),
         Input("sam2-stride", "value"),
     )
     def _sam2_vid_content(
         meta: dict[str, Any] | None, max_f: float | None, stride: float | None
-    ) -> tuple[Any, dict[str, Any]]:
+    ) -> tuple[Any, dict[str, Any], int, int]:
         global _raw_sam2_vid, _frames_sam2, _sam2_vid_previews, _sam2_vid_track_key
         empty_pts: dict[str, Any] = {"points": [], "last_ser": None}
         if not meta or _raw_sam2_vid is None:
-            return html.P("Upload a video file.", className="text-muted"), empty_pts
+            return html.P("Upload a video file.", className="text-muted"), empty_pts, 0, 0
         mf = int(max_f) if max_f is not None else 80
         st = int(stride) if stride is not None else 1
         suf = meta.get("suffix") or ".mp4"
@@ -1286,13 +1290,13 @@ def _register_callbacks(app: dash.Dash) -> None:
         _sam2_vid_previews = None
         _sam2_vid_track_key = None
         if not _frames_sam2:
-            return dbc.Alert("No frames decoded.", color="danger"), empty_pts
+            return dbc.Alert("No frames decoded.", color="danger"), empty_pts, 0, 0
         p0 = _frames_sam2[0].copy()
         mx, my = float(p0.size[0]) / 2.0, float(p0.size[1]) / 2.0
         return html.Div(
             [
                 dcc.Markdown(
-                    f"Loaded **{len(_frames_sam2)}** frame(s). **Frame 0** — choose positive or negative "
+                    f"Loaded **{len(_frames_sam2)}** frame(s). Use the slider to pick a **Starting frame** — choose positive or negative "
                     "for the next click, then click the image. **All** points are sent to the video model "
                     "(same nesting as SAM 2 image). Coordinates below show the **last** click for editing."
                 ),
@@ -1318,14 +1322,14 @@ def _register_callbacks(app: dash.Dash) -> None:
                     [
                         dbc.Col(
                             [
-                                html.Label("Last click x (frame 0)"),
+                                html.Label("Last click x (starting frame)"),
                                 dbc.Input(id="sam2-px", type="number", value=mx),
                             ],
                             width=6,
                         ),
                         dbc.Col(
                             [
-                                html.Label("Last click y (frame 0)"),
+                                html.Label("Last click y (starting frame)"),
                                 dbc.Input(id="sam2-py", type="number", value=my),
                             ],
                             width=6,
@@ -1337,14 +1341,15 @@ def _register_callbacks(app: dash.Dash) -> None:
                 html.Span(id="sam2-vid-load-msg", className="text-success small"),
                 dbc.Button("Track in video", id="sam2-vid-run", color="success", className="mt-2 d-block"),
             ]
-        ), empty_pts
+        ), empty_pts, max(0, len(_frames_sam2) - 1), 0
 
     @app.callback(
         Output("sam2-vid-graph", "figure"),
         Input("sam2-vid-points-store", "data"),
+        Input("sam2-start-frame", "value"),
         prevent_initial_call=True,
     )
-    def _sam2_vid_figure(points_data: dict[str, Any] | None) -> go.Figure:
+    def _sam2_vid_figure(points_data: dict[str, Any] | None, start_frame: int | None) -> go.Figure:
         """
         Redraw frame 0 with green/red markers whenever the prompt point store changes.
 
@@ -1354,7 +1359,8 @@ def _register_callbacks(app: dash.Dash) -> None:
         global _frames_sam2
         if _frames_sam2 is None:
             return go.Figure()
-        p0 = _frames_sam2[0].copy()
+        sf = start_frame if start_frame is not None else 0
+        p0 = _frames_sam2[sf].copy()
         pts = (points_data or {}).get("points", [])
         return _sam1_figure_with_point_markers(p0, pts, uirevision="sam2-vid")
 
@@ -1417,6 +1423,7 @@ def _register_callbacks(app: dash.Dash) -> None:
         State("sam2-maxf", "value"),
         State("sam2-stride", "value"),
         State("device-dropdown", "value"),
+        State("sam2-start-frame", "value"),
         prevent_initial_call=True,
     )
     def _sam2_vid_track(
@@ -1427,6 +1434,7 @@ def _register_callbacks(app: dash.Dash) -> None:
         max_f: float | None,
         stride: float | None,
         device: str | None,
+        start_frame: int | None,
     ) -> Any:
         global _sam2_vid_bundle, _frames_sam2, _sam2_vid_previews, _sam2_vid_track_key, _device_str
         if not n or _sam2_vid_bundle is None or _frames_sam2 is None or not meta:
@@ -1437,8 +1445,9 @@ def _register_callbacks(app: dash.Dash) -> None:
         mf = int(max_f) if max_f is not None else 80
         st = int(stride) if stride is not None else 1
         bx, by = float(px or 0), float(py or 0)
-        key = (vid_sig, mf, st, bx, by)
-        masks, previews = track_video_with_point(_sam2_vid_bundle, _frames_sam2, (bx, by))
+        sf = int(start_frame) if start_frame is not None else 0
+        key = (vid_sig, mf, st, bx, by, sf)
+        masks, previews = track_video_with_point(_sam2_vid_bundle, _frames_sam2, (bx, by), start_frame_idx=sf)
         _sam2_vid_previews = previews
         _sam2_vid_track_key = key
         return html.Div(

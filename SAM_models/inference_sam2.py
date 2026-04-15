@@ -61,6 +61,20 @@ def load_sam2_image(
     if dtype is None:
         dtype = _pick_dtype(device)
     model = Sam2Model.from_pretrained(SAM2_LARGE_MODEL_ID).to(device=device, dtype=dtype)
+    # Generate a diagram of the model 
+    try:
+        from torchviz import make_dot
+        processor = Sam2Processor.from_pretrained(SAM2_LARGE_MODEL_ID)
+        dummy_image = Image.new('RGB', (256, 256))
+        inputs = processor(images=dummy_image, return_tensors="pt").to(device=device, dtype=dtype)
+        outputs = model(**inputs)
+        rendered_tensor = outputs.pred_masks if hasattr(outputs, 'pred_masks') else outputs[0]
+        dot = make_dot(rendered_tensor, params=dict(model.named_parameters()))
+        dot.format = 'png'
+        dot.render('sam2_model_architecture', directory='.')
+        print("Model diagram saved to sam2_model_architecture.png")
+    except Exception as e:
+        print(f"Failed to generate model diagram: {e}")
     processor = Sam2Processor.from_pretrained(SAM2_LARGE_MODEL_ID)
     model.eval()
     return Sam2ImageBundle(model=model, processor=processor, device=device, dtype=dtype)
@@ -160,6 +174,7 @@ def track_video_with_points(
     points_xy: list[tuple[float, float]],
     point_labels: list[int],
     obj_id: int = 1,
+    start_frame_idx: int = 0,
 ) -> tuple[list[np.ndarray], list[Image.Image]]:
     """
     Track multi-point prompts on frame 0 through the video (same nesting as image SAM 2).
@@ -192,7 +207,7 @@ def track_video_with_points(
     labels = [[list(point_labels)]]
     proc.add_inputs_to_inference_session(
         inference_session=inference_session,
-        frame_idx=0,
+        frame_idx=start_frame_idx,
         obj_ids=obj_id,
         input_points=points,
         input_labels=labels,
@@ -200,7 +215,7 @@ def track_video_with_points(
 
     masks_by_frame: dict[int, np.ndarray] = {}
     with torch.no_grad():
-        first_out = model(inference_session=inference_session, frame_idx=0)
+        first_out = model(inference_session=inference_session, frame_idx=start_frame_idx)
         pm0 = proc.post_process_masks(
             [first_out.pred_masks],
             original_sizes=[
@@ -208,7 +223,7 @@ def track_video_with_points(
             ],
             binarize=True,
         )[0]
-        masks_by_frame[0] = (pm0[0, 0].float().cpu().numpy() > 0.5).astype(np.float32)
+        masks_by_frame[start_frame_idx] = (pm0[0, 0].float().cpu().numpy() > 0.5).astype(np.float32)
 
         for sam_out in model.propagate_in_video_iterator(inference_session):
             pm = proc.post_process_masks(
@@ -239,8 +254,9 @@ def track_video_with_point(
     point_xy: tuple[float, float],
     label: int = 1,
     obj_id: int = 1,
+    start_frame_idx: int = 0,
 ) -> tuple[list[np.ndarray], list[Image.Image]]:
     """
-    Track a single point on frame 0 (convenience wrapper around :func:`track_video_with_points`).
+    Track a single point on a given frame (convenience wrapper around :func:`track_video_with_points`).
     """
-    return track_video_with_points(bundle, frames, [point_xy], [label], obj_id=obj_id)
+    return track_video_with_points(bundle, frames, [point_xy], [label], obj_id=obj_id, start_frame_idx=start_frame_idx)
